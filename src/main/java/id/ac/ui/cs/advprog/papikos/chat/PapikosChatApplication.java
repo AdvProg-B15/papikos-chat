@@ -1,4 +1,4 @@
-package id.ac.ui.cs.advprog.papikos.chat.papikoschat;
+package id.ac.ui.cs.advprog.papikos.chat;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
