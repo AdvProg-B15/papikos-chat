@@ -33,21 +33,18 @@ class ChatRoomsTest {
 
     @Test
     void testUserIdValidationSuccess() {
-        ChatRooms room = new ChatRooms(USER1_ID, USER2_ID);
-        assertDoesNotThrow(() -> room.validateUserOrder());
+        assertDoesNotThrow(() -> new ChatRooms(USER1_ID, USER2_ID));
     }
 
     @Test
     void testUserIdCannotBeEqual() {
-        ChatRooms room = new ChatRooms(USER1_ID, USER1_ID);
-        assertThrows(IllegalArgumentException.class, () -> room.validateUserOrder());
+        assertThrows(IllegalArgumentException.class, () -> new ChatRooms(USER1_ID, USER1_ID));
     }
 
 
     @Test
     void testUserIdAutoSwap() {
         ChatRooms room = new ChatRooms(USER2_ID, USER1_ID);
-        room.validateUserOrder();
 
         assertEquals(USER1_ID, room.getUser1Id());
         assertEquals(USER2_ID, room.getUser2Id());
