@@ -1,0 +1,71 @@
+package id.ac.ui.cs.advprog.papikos.chat.model;
+
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import java.time.LocalDateTime;
+
+class MessagesTest {
+    private UserDummy sender;
+    private static final Long ROOM_ID = 101L;
+    private static final String CONTENT = "P, kamar tersedia?";
+
+    @BeforeEach
+    void setUp() {
+        sender = new UserDummy();
+        sender.setId(101L);
+        sender.setUsername("sender");
+        sender.setRole(UserDummy.Role.USER);
+    }
+
+    @Test
+    void testCreateMessageViaAllArgsConstructor() {
+        LocalDateTime createdAt = LocalDateTime.now();
+        LocalDateTime updatedAt = LocalDateTime.now();
+
+        Messages message = new Messages(
+                1L,
+                ROOM_ID,
+                sender.getId(),
+                CONTENT,
+                false,
+                false,
+                createdAt,
+                updatedAt
+        );
+
+        assertEquals(1L, message.getMessageId());
+        assertEquals(ROOM_ID, message.getRoomId());
+        assertEquals(sender.getId(), message.getSenderUserId());
+        assertEquals(CONTENT, message.getContent());
+        assertFalse(message.isEdited());
+        assertFalse(message.isDeleted());
+        assertEquals(createdAt, message.getCreatedAt());
+        assertEquals(updatedAt, message.getUpdatedAt());
+    }
+
+    @Test
+    void testMessageContentCannotBeEmpty() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            new Messages(
+                    ROOM_ID,
+                    sender.getId(),
+                    ""
+            );
+        });
+    }
+
+    @Test
+    void testDefaultValuesViaCustomConstructor() {
+        Messages message = new Messages(
+                ROOM_ID,
+                sender.getId(),
+                CONTENT
+        );
+
+        assertNull(message.getMessageId());
+        assertFalse(message.isEdited());
+        assertFalse(message.isDeleted());
+        assertNotNull(message.getCreatedAt());
+    }
+}
