@@ -44,13 +44,37 @@ public class ChatRooms {
     private LocalDateTime updatedAt;
 
     public ChatRooms(Long user1Id, Long user2Id) {
-        this.user1Id = user1Id;
-        this.user2Id = user2Id;
-        validateUserOrder();
+        validateInput(user1Id, user2Id);
+        autoSwapUsers(user1Id, user2Id);
+        this.lastMessageAt = null; //TODO: hubungkan dengan timestamp last message
+        this.createdAt = LocalDateTime.now(); //TODO: integrasi dengan database
+        this.updatedAt = LocalDateTime.now(); //TODO: integrasi dengan database
     }
 
-    @PrePersist
-    @PreUpdate
     private void validateUserOrder() {
+        validateInput(user1Id, user2Id);
+        autoSwapUsers(user1Id, user2Id);
+    }
+
+    private void validateInput(Long user1Id, Long user2Id) {
+        if (user1Id == null || user2Id == null) {
+            throw new IllegalArgumentException("User IDs cannot be null");
+        }
+        if (user1Id < 0 || user2Id < 0) {
+            throw new IllegalArgumentException("User IDs cannot be negative");
+        }
+        if (user1Id.equals(user2Id)) {
+            throw new IllegalArgumentException("User IDs must be different");
+        }
+    }
+
+    private void autoSwapUsers(Long inputUser1, Long inputUser2) {
+        if (inputUser1 > inputUser2) {
+            this.user1Id = inputUser2;
+            this.user2Id = inputUser1;
+        } else {
+            this.user1Id = inputUser1;
+            this.user2Id = inputUser2;
+        }
     }
 }
