@@ -1,9 +1,9 @@
 package id.ac.ui.cs.advprog.papikos.chat.service;
 
-import id.ac.ui.cs.advprog.papikos.chat.model.ChatRooms;
-import id.ac.ui.cs.advprog.papikos.chat.model.Messages;
-import id.ac.ui.cs.advprog.papikos.chat.repository.ChatRoomsRepository;
-import id.ac.ui.cs.advprog.papikos.chat.repository.MessagesRepository;
+import id.ac.ui.cs.advprog.papikos.chat.model.ChatRoom;
+import id.ac.ui.cs.advprog.papikos.chat.model.Message;
+import id.ac.ui.cs.advprog.papikos.chat.repository.ChatRoomRepository;
+import id.ac.ui.cs.advprog.papikos.chat.repository.MessageRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,15 +24,15 @@ import static org.mockito.Mockito.*;
 class MessagesServiceTest {
 
     @Mock
-    private MessagesRepository messagesRepository;
+    private MessageRepository messagesRepository;
 
     @Mock
-    private ChatRoomsRepository chatRoomsRepository;
+    private ChatRoomRepository chatRoomsRepository;
 
     @InjectMocks
-    private MessagesService messagesService;
+    private MessageService messagesService;
 
-    private Messages testMessage;
+    private Message testMessage;
     private final Long validRoomId = 1L;
     private final Long validUserId = 1L;
     private final Long invalidUserId = 2L;
@@ -40,7 +40,7 @@ class MessagesServiceTest {
 
     @BeforeEach
     void setUp() {
-        testMessage = new Messages(validRoomId, validUserId, "Test message");
+        testMessage = new Message(validRoomId, validUserId, "Test message");
         testMessage.setMessageId(messageId);
         testMessage.setCreatedAt(LocalDateTime.now());
     }
@@ -51,14 +51,14 @@ class MessagesServiceTest {
         Long user2Id = 2L;
         String messageContent = "Hello World";
 
-        ChatRooms mockRoom = new ChatRooms(user1Id, user2Id);
+        ChatRoom mockRoom = new ChatRoom(user1Id, user2Id);
         mockRoom.setRoomId(validRoomId);
 
         LocalDateTime testTime = LocalDateTime.now();
 
         when(messagesRepository.save(any()))
                 .thenAnswer(invocation -> {
-                    Messages msg = invocation.getArgument(0);
+                    Message msg = invocation.getArgument(0);
                     msg.setMessageId(1L);
                     msg.setCreatedAt(testTime);
                     msg.setUpdatedAt(testTime);
@@ -68,7 +68,7 @@ class MessagesServiceTest {
         when(chatRoomsRepository.findById(validRoomId))
                 .thenReturn(Optional.of(mockRoom));
 
-        Messages result = messagesService.sendMessage(validRoomId, validUserId, messageContent);
+        Message result = messagesService.sendMessage(validRoomId, validUserId, messageContent);
 
 
         assertNotNull(result, "Result should not be null");
@@ -82,7 +82,7 @@ class MessagesServiceTest {
         verify(chatRoomsRepository, times(1)).findById(validRoomId);
         verify(chatRoomsRepository, times(1)).save(any());
 
-        ChatRooms updatedRoom = chatRoomsRepository.findById(validRoomId).orElseThrow();
+        ChatRoom updatedRoom = chatRoomsRepository.findById(validRoomId).orElseThrow();
         assertEquals(testTime, updatedRoom.getLastMessageAt(), "Last message timestamp not updated");
     }
 
@@ -91,7 +91,7 @@ class MessagesServiceTest {
         when(messagesRepository.findByRoomIdOrderByCreatedAtAsc(validRoomId))
                 .thenReturn(Collections.singletonList(testMessage));
 
-        List<Messages> messages = messagesService.getMessagesByRoomAsc(validRoomId);
+        List<Message> messages = messagesService.getMessagesByRoomAsc(validRoomId);
 
         assertEquals(1, messages.size());
         assertEquals(testMessage, messages.getFirst());
@@ -100,9 +100,9 @@ class MessagesServiceTest {
     @Test
     void testEditMessageContent_Success() {
         when(messagesRepository.findById(messageId)).thenReturn(Optional.of(testMessage));
-        when(messagesRepository.save(any(Messages.class))).thenReturn(testMessage);
+        when(messagesRepository.save(any(Message.class))).thenReturn(testMessage);
 
-        Messages editedMessage = messagesService.editMessageContent(messageId, validUserId, "Edited message");
+        Message editedMessage = messagesService.editMessageContent(messageId, validUserId, "Edited message");
 
         assertEquals("Edited message", editedMessage.getContent());
         assertTrue(editedMessage.isEdited());
@@ -120,9 +120,9 @@ class MessagesServiceTest {
     @Test
     void testMarkMessageAsDeleted_Success() {
         when(messagesRepository.findById(messageId)).thenReturn(Optional.of(testMessage));
-        when(messagesRepository.save(any(Messages.class))).thenReturn(testMessage);
+        when(messagesRepository.save(any(Message.class))).thenReturn(testMessage);
 
-        Messages deletedMessage = messagesService.markMessageAsDeleted(messageId, validUserId);
+        Message deletedMessage = messagesService.markMessageAsDeleted(messageId, validUserId);
 
         assertTrue(deletedMessage.isDeleted());
         assertEquals("[deleted]", deletedMessage.getContent());
@@ -134,7 +134,7 @@ class MessagesServiceTest {
         when(messagesRepository.findFirstByRoomIdOrderByCreatedAtDesc(validRoomId))
                 .thenReturn(Optional.of(testMessage));
 
-        Optional<Messages> result = messagesService.getLatestMessageInRoom(validRoomId);
+        Optional<Message> result = messagesService.getLatestMessageInRoom(validRoomId);
         assertTrue(result.isPresent());
     }
 
@@ -161,7 +161,7 @@ class MessagesServiceTest {
         when(messagesRepository.findByRoomIdOrderByCreatedAtAsc(emptyRoomId))
                 .thenReturn(Collections.emptyList());
 
-        List<Messages> messages = messagesService.getMessagesByRoomAsc(emptyRoomId);
+        List<Message> messages = messagesService.getMessagesByRoomAsc(emptyRoomId);
 
         assertTrue(messages.isEmpty());
     }

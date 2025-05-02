@@ -1,7 +1,7 @@
 package id.ac.ui.cs.advprog.papikos.chat.service;
 
-import id.ac.ui.cs.advprog.papikos.chat.model.ChatRooms;
-import id.ac.ui.cs.advprog.papikos.chat.repository.ChatRoomsRepository;
+import id.ac.ui.cs.advprog.papikos.chat.model.ChatRoom;
+import id.ac.ui.cs.advprog.papikos.chat.repository.ChatRoomRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,49 +11,49 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-public class ChatRoomsService {
+public class ChatRoomService {
 
-    private final ChatRoomsRepository chatRoomsRepository;
+    private final ChatRoomRepository chatRoomsRepository;
 
     @Autowired
-    public ChatRoomsService(ChatRoomsRepository chatRoomsRepository) {
+    public ChatRoomService(ChatRoomRepository chatRoomsRepository) {
         this.chatRoomsRepository = chatRoomsRepository;
     }
 
     @Transactional
-    public ChatRooms createChatRoom(Long user1Id, Long user2Id) {
+    public ChatRoom createChatRoom(Long user1Id, Long user2Id) {
         validateUserIds(user1Id, user2Id);
         Long[] orderedUserIds = orderUserIds(user1Id, user2Id);
 
         return chatRoomsRepository.findByUser1IdAndUser2Id(orderedUserIds[0], orderedUserIds[1])
                 .orElseGet(() -> {
-                    ChatRooms newRoom = new ChatRooms(orderedUserIds[0], orderedUserIds[1]);
+                    ChatRoom newRoom = new ChatRoom(orderedUserIds[0], orderedUserIds[1]);
                     return chatRoomsRepository.save(newRoom);
                 });
     }
 
     @Transactional(readOnly = true)
-    public ChatRooms getChatRoomById(Long roomId) {
+    public ChatRoom getChatRoomById(Long roomId) {
         return chatRoomsRepository.findById(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("Chat room not found"));
     }
 
     @Transactional(readOnly = true)
-    public Optional<ChatRooms> findChatRoomByUserPair(Long user1Id, Long user2Id) {
+    public Optional<ChatRoom> findChatRoomByUserPair(Long user1Id, Long user2Id) {
         validateUserIds(user1Id, user2Id);
         Long[] orderedUserIds = orderUserIds(user1Id, user2Id);
         return chatRoomsRepository.findByUser1IdAndUser2Id(orderedUserIds[0], orderedUserIds[1]);
     }
 
     @Transactional(readOnly = true)
-    public List<ChatRooms> getAllChatRoomsForUser(Long userId) {
+    public List<ChatRoom> getAllChatRoomsForUser(Long userId) {
         validateUserId(userId);
         return chatRoomsRepository.findByUser1IdOrUser2Id(userId, userId);
     }
 
     @Transactional
-    public ChatRooms updateLastMessageAt(Long roomId, LocalDateTime timestamp) {
-        ChatRooms room = getChatRoomById(roomId);
+    public ChatRoom updateLastMessageAt(Long roomId, LocalDateTime timestamp) {
+        ChatRoom room = getChatRoomById(roomId);
         room.setLastMessageAt(timestamp);
         return chatRoomsRepository.save(room);
     }

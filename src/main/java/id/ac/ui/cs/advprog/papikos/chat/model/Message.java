@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class Messages {
+public class Message {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -46,7 +46,7 @@ public class Messages {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public Messages(Long roomId, Long senderUserId, String content) {
+    public Message(Long roomId, Long senderUserId, String content) {
         validateInput(roomId, senderUserId, content);
         this.roomId = roomId;
         this.senderUserId = senderUserId;

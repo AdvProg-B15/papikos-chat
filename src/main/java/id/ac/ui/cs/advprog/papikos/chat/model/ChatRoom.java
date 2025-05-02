@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class ChatRooms {
+public class ChatRoom {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -43,7 +43,7 @@ public class ChatRooms {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public ChatRooms(Long user1Id, Long user2Id) {
+    public ChatRoom(Long user1Id, Long user2Id) {
         validateInput(user1Id, user2Id);
         autoSwapUsers(user1Id, user2Id);
         this.lastMessageAt = null; //TODO: hubungkan dengan timestamp last message
