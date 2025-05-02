@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: papikos-rentals:latest
+    image: papikos-chat:latest
     ports:
       - '8080:8080'
     networks:
