@@ -2,9 +2,11 @@ package id.ac.ui.cs.advprog.papikos.chat.model;
 
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class UserDummy {
-    private Long id;
+    private UUID id;
     private String username;
     private Role role;
 

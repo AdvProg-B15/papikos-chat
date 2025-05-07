@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(
@@ -22,15 +23,15 @@ import java.time.LocalDateTime;
 public class ChatRoom {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "room_id")
-    private Long roomId;
+    private UUID roomId;
 
     @Column(name = "user1_id", nullable = false)
-    private Long user1Id;
+    private UUID user1Id;
 
     @Column(name = "user2_id", nullable = false)
-    private Long user2Id;
+    private UUID user2Id;
 
     @Column(name = "last_message_at")
     private LocalDateTime lastMessageAt;
@@ -43,38 +44,26 @@ public class ChatRoom {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public ChatRoom(Long user1Id, Long user2Id) {
-        validateInput(user1Id, user2Id);
-        autoSwapUsers(user1Id, user2Id);
+    public ChatRoom(UUID user1Id, UUID user2Id) {
+        UUID[] users = validateAndSwapUsers(user1Id, user2Id);
+        this.user1Id = users[0];
+        this.user2Id = users[1];
         this.lastMessageAt = null; //TODO: hubungkan dengan timestamp last message
         this.createdAt = LocalDateTime.now(); //TODO: integrasi dengan database
         this.updatedAt = LocalDateTime.now(); //TODO: integrasi dengan database
     }
 
-    private void validateUserOrder() {
-        validateInput(user1Id, user2Id);
-        autoSwapUsers(user1Id, user2Id);
-    }
-
-    private void validateInput(Long user1Id, Long user2Id) {
-        if (user1Id == null || user2Id == null) {
+    private UUID[] validateAndSwapUsers(UUID inputUser1, UUID inputUser2) {
+        if (inputUser1 == null || inputUser2 == null) {
             throw new IllegalArgumentException("User IDs cannot be null");
         }
-        if (user1Id < 0 || user2Id < 0) {
-            throw new IllegalArgumentException("User IDs cannot be negative");
-        }
-        if (user1Id.equals(user2Id)) {
+        if (inputUser1.equals(inputUser2)) {
             throw new IllegalArgumentException("User IDs must be different");
         }
-    }
 
-    private void autoSwapUsers(Long inputUser1, Long inputUser2) {
-        if (inputUser1 > inputUser2) {
-            this.user1Id = inputUser2;
-            this.user2Id = inputUser1;
-        } else {
-            this.user1Id = inputUser1;
-            this.user2Id = inputUser2;
+        if (inputUser1.compareTo(inputUser2) > 0) {
+            return new UUID[]{inputUser2, inputUser1};
         }
+        return new UUID[]{inputUser1, inputUser2};
     }
 }

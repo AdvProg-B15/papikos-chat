@@ -6,6 +6,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "messages")
@@ -17,15 +18,15 @@ import java.time.LocalDateTime;
 public class Message {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "message_id")
-    private Long messageId;
+    private UUID messageId;
 
     @Column(name = "room_id", nullable = false)
-    private Long roomId;
+    private UUID roomId;
 
     @Column(name = "sender_user_id", nullable = false)
-    private Long senderUserId;
+    private UUID senderUserId;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
@@ -46,7 +47,7 @@ public class Message {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public Message(Long roomId, Long senderUserId, String content) {
+    public Message(UUID roomId, UUID senderUserId, String content) {
         validateInput(roomId, senderUserId, content);
         this.roomId = roomId;
         this.senderUserId = senderUserId;
@@ -55,11 +56,11 @@ public class Message {
         this.updatedAt = LocalDateTime.now(); //TODO: integrasi dengan database
     }
 
-    private void validateInput(Long roomId, Long senderUserId, String content) {
-        if (roomId == null || roomId <= 0) {
+    private void validateInput(UUID roomId, UUID senderUserId, String content) {
+        if (roomId == null) {
             throw new IllegalArgumentException("Invalid room ID");
         }
-        if (senderUserId == null || senderUserId <= 0) {
+        if (senderUserId == null) {
             throw new IllegalArgumentException("Invalid sender ID");
         }
         if (content == null || content.trim().isEmpty()) {

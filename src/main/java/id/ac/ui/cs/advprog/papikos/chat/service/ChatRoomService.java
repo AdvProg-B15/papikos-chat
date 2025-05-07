@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class ChatRoomService {
@@ -21,9 +22,9 @@ public class ChatRoomService {
     }
 
     @Transactional
-    public ChatRoom createChatRoom(Long user1Id, Long user2Id) {
+    public ChatRoom createChatRoom(UUID user1Id, UUID user2Id) {
         validateUserIds(user1Id, user2Id);
-        Long[] orderedUserIds = orderUserIds(user1Id, user2Id);
+        UUID[] orderedUserIds = orderUserIds(user1Id, user2Id);
 
         return chatRoomsRepository.findByUser1IdAndUser2Id(orderedUserIds[0], orderedUserIds[1])
                 .orElseGet(() -> {
@@ -33,32 +34,32 @@ public class ChatRoomService {
     }
 
     @Transactional(readOnly = true)
-    public ChatRoom getChatRoomById(Long roomId) {
+    public ChatRoom getChatRoomById(UUID roomId) {
         return chatRoomsRepository.findById(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("Chat room not found"));
     }
 
     @Transactional(readOnly = true)
-    public Optional<ChatRoom> findChatRoomByUserPair(Long user1Id, Long user2Id) {
+    public Optional<ChatRoom> findChatRoomByUserPair(UUID user1Id, UUID user2Id) {
         validateUserIds(user1Id, user2Id);
-        Long[] orderedUserIds = orderUserIds(user1Id, user2Id);
+        UUID[] orderedUserIds = orderUserIds(user1Id, user2Id);
         return chatRoomsRepository.findByUser1IdAndUser2Id(orderedUserIds[0], orderedUserIds[1]);
     }
 
     @Transactional(readOnly = true)
-    public List<ChatRoom> getAllChatRoomsForUser(Long userId) {
+    public List<ChatRoom> getAllChatRoomsForUser(UUID userId) {
         validateUserId(userId);
         return chatRoomsRepository.findByUser1IdOrUser2Id(userId, userId);
     }
 
     @Transactional
-    public ChatRoom updateLastMessageAt(Long roomId, LocalDateTime timestamp) {
+    public ChatRoom updateLastMessageAt(UUID roomId, LocalDateTime timestamp) {
         ChatRoom room = getChatRoomById(roomId);
         room.setLastMessageAt(timestamp);
         return chatRoomsRepository.save(room);
     }
 
-    private void validateUserIds(Long user1Id, Long user2Id) {
+    private void validateUserIds(UUID user1Id, UUID user2Id) {
         if (user1Id == null || user2Id == null) {
             throw new IllegalArgumentException("User IDs cannot be null");
         }
@@ -69,13 +70,13 @@ public class ChatRoomService {
         validateUserId(user2Id);
     }
 
-    private void validateUserId(Long userId) {
-        if (userId == null || userId < 0) {
+    private void validateUserId(UUID userId) {
+        if (userId == null) {
             throw new IllegalArgumentException("Invalid User ID");
         }
     }
 
-    private Long[] orderUserIds(Long id1, Long id2) {
-        return id1 < id2 ? new Long[]{id1, id2} : new Long[]{id2, id1};
+    private UUID[] orderUserIds(UUID id1, UUID id2) {
+        return id1.compareTo(id2) < 0 ? new UUID[]{id1, id2} : new UUID[]{id2, id1};
     }
 }

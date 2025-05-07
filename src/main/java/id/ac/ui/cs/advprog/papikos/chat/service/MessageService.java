@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class MessageService {
@@ -23,7 +24,7 @@ public class MessageService {
         this.chatRoomsRepository = chatRoomsRepository;
     }
 
-    public Message sendMessage(Long roomId, Long senderUserId, String content) {
+    public Message sendMessage(UUID roomId, UUID senderUserId, String content) {
         Message newMessage = new Message(roomId, senderUserId, content);
         Message savedMessage = messagesRepository.save(newMessage);
 
@@ -35,15 +36,15 @@ public class MessageService {
         return savedMessage;
     }
 
-    public List<Message> getMessagesByRoomAsc(Long roomId) {
+    public List<Message> getMessagesByRoomAsc(UUID roomId) {
         return messagesRepository.findByRoomIdOrderByCreatedAtAsc(roomId);
     }
 
-    public List<Message> getMessagesByRoomDesc(Long roomId) {
+    public List<Message> getMessagesByRoomDesc(UUID roomId) {
         return messagesRepository.findByRoomIdOrderByCreatedAtDesc(roomId);
     }
 
-    public Message editMessageContent(Long messageId, Long userId, String newContent) {
+    public Message editMessageContent(UUID messageId, UUID userId, String newContent) {
         Optional<Message> messageOpt = messagesRepository.findById(messageId);
         if (messageOpt.isEmpty()) {
             throw new IllegalArgumentException("Message not found");
@@ -63,7 +64,7 @@ public class MessageService {
         return messagesRepository.save(message);
     }
 
-    public Message markMessageAsDeleted(Long messageId, Long userId) {
+    public Message markMessageAsDeleted(UUID messageId, UUID userId) {
         Optional<Message> messageOpt = messagesRepository.findById(messageId);
         if (messageOpt.isEmpty()) {
             throw new IllegalArgumentException("Message not found");
@@ -79,7 +80,7 @@ public class MessageService {
         return messagesRepository.save(message);
     }
 
-    public Optional<Message> getLatestMessageInRoom(Long roomId) {
+    public Optional<Message> getLatestMessageInRoom(UUID roomId) {
         return messagesRepository.findFirstByRoomIdOrderByCreatedAtDesc(roomId);
     }
 }

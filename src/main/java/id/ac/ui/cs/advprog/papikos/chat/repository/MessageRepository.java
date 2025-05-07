@@ -6,13 +6,14 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface MessageRepository extends JpaRepository<Message, Long> {
+public interface MessageRepository extends JpaRepository<Message, UUID> {
 
-    List<Message> findByRoomIdOrderByCreatedAtAsc(Long validRoomId);
+    List<Message> findByRoomIdOrderByCreatedAtAsc(UUID validRoomId);
 
-    List<Message> findByRoomIdOrderByCreatedAtDesc(Long roomId);
+    List<Message> findByRoomIdOrderByCreatedAtDesc(UUID roomId);
 
-    Optional<Message> findFirstByRoomIdOrderByCreatedAtDesc(Long roomId);
+    Optional<Message> findFirstByRoomIdOrderByCreatedAtDesc(UUID roomId);
 }

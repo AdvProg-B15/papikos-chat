@@ -6,10 +6,11 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
-    Optional<ChatRoom> findByUser1IdAndUser2Id(Long orderedUserId, Long orderedUserId1);
+public interface ChatRoomRepository extends JpaRepository<ChatRoom, UUID> {
+    Optional<ChatRoom> findByUser1IdAndUser2Id(UUID orderedUserId, UUID orderedUserId1);
 
-    List<ChatRoom> findByUser1IdOrUser2Id(Long userId, Long userId1);
+    List<ChatRoom> findByUser1IdOrUser2Id(UUID userId, UUID userId1);
 }
