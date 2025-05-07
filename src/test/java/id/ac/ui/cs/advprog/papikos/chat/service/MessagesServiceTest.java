@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,10 +34,10 @@ class MessagesServiceTest {
     private MessageService messagesService;
 
     private Message testMessage;
-    private final Long validRoomId = 1L;
-    private final Long validUserId = 1L;
-    private final Long invalidUserId = 2L;
-    private final Long messageId = 1L;
+    private final UUID validRoomId = UUID.randomUUID();
+    private final UUID validUserId = UUID.randomUUID();
+    private final UUID invalidUserId = UUID.randomUUID();
+    private final UUID messageId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
@@ -47,8 +48,8 @@ class MessagesServiceTest {
 
     @Test
     void testSendMessage() {
-        Long user1Id = 1L;
-        Long user2Id = 2L;
+        UUID user1Id = UUID.randomUUID();
+        UUID user2Id = UUID.randomUUID();
         String messageContent = "Hello World";
 
         ChatRoom mockRoom = new ChatRoom(user1Id, user2Id);
@@ -59,7 +60,7 @@ class MessagesServiceTest {
         when(messagesRepository.save(any()))
                 .thenAnswer(invocation -> {
                     Message msg = invocation.getArgument(0);
-                    msg.setMessageId(1L);
+                    msg.setMessageId(UUID.randomUUID());
                     msg.setCreatedAt(testTime);
                     msg.setUpdatedAt(testTime);
                     return msg;
@@ -69,7 +70,6 @@ class MessagesServiceTest {
                 .thenReturn(Optional.of(mockRoom));
 
         Message result = messagesService.sendMessage(validRoomId, validUserId, messageContent);
-
 
         assertNotNull(result, "Result should not be null");
         assertEquals(validUserId, result.getSenderUserId(), "Sender ID mismatch");
@@ -94,7 +94,7 @@ class MessagesServiceTest {
         List<Message> messages = messagesService.getMessagesByRoomAsc(validRoomId);
 
         assertEquals(1, messages.size());
-        assertEquals(testMessage, messages.getFirst());
+        assertEquals(testMessage, messages.get(0));
     }
 
     @Test
@@ -149,15 +149,15 @@ class MessagesServiceTest {
 
     @Test
     void testMessageNotFound_ShouldThrow() {
-        when(messagesRepository.findById(anyLong())).thenReturn(Optional.empty());
+        when(messagesRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () ->
-                messagesService.editMessageContent(999L, validUserId, "Edited message"));
+                messagesService.editMessageContent(UUID.randomUUID(), validUserId, "Edited message"));
     }
 
     @Test
     void testEmptyRoomMessages() {
-        Long emptyRoomId = 2L;
+        UUID emptyRoomId = UUID.randomUUID();
         when(messagesRepository.findByRoomIdOrderByCreatedAtAsc(emptyRoomId))
                 .thenReturn(Collections.emptyList());
 

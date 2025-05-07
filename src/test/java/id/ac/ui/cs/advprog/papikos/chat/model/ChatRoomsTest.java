@@ -3,10 +3,11 @@ package id.ac.ui.cs.advprog.papikos.chat.model;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 class ChatRoomsTest {
-    private static final Long USER1_ID = 101L;
-    private static final Long USER2_ID = 202L;
+    private static final UUID USER1_ID = UUID.fromString("c12a3c98-b05f-4d67-a2cc-bc741577cf1a");
+    private static final UUID USER2_ID = UUID.fromString("42abf604-4a75-4425-b98a-7fa6da52cc4b");
 
     @Test
     void testCreateChatRoomsViaAllArgsConstructor() {
@@ -15,7 +16,7 @@ class ChatRoomsTest {
         LocalDateTime lastMessageAt = LocalDateTime.now();
 
         ChatRoom room = new ChatRoom(
-                1L,
+                UUID.randomUUID(),
                 USER1_ID,
                 USER2_ID,
                 lastMessageAt,
@@ -23,7 +24,7 @@ class ChatRoomsTest {
                 updatedAt
         );
 
-        assertEquals(1L, room.getRoomId());
+        assertNotNull(room.getRoomId());
         assertEquals(USER1_ID, room.getUser1Id());
         assertEquals(USER2_ID, room.getUser2Id());
         assertEquals(lastMessageAt, room.getLastMessageAt());
@@ -40,7 +41,6 @@ class ChatRoomsTest {
     void testUserIdCannotBeEqual() {
         assertThrows(IllegalArgumentException.class, () -> new ChatRoom(USER1_ID, USER1_ID));
     }
-
 
     @Test
     void testUserIdAutoSwap() {
@@ -80,8 +80,8 @@ class ChatRoomsTest {
 
     @Test
     void testInvalidUserIds() {
-        assertThrows(IllegalArgumentException.class, () -> new ChatRoom(-1L, USER2_ID));
-        assertThrows(IllegalArgumentException.class, () -> new ChatRoom(USER1_ID, -1L));
+        assertThrows(IllegalArgumentException.class, () -> new ChatRoom(null, USER2_ID));
+        assertThrows(IllegalArgumentException.class, () -> new ChatRoom(USER1_ID, null));
     }
 
     @Test

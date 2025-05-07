@@ -4,16 +4,17 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 class MessagesTest {
     private UserDummy sender;
-    private static final Long ROOM_ID = 101L;
+    private static final UUID ROOM_ID = UUID.fromString("c12a3c98-b05f-4d67-a2cc-bc741577cf1a");
     private static final String CONTENT = "P, kamar tersedia?";
 
     @BeforeEach
     void setUp() {
         sender = new UserDummy();
-        sender.setId(101L);
+        sender.setId(UUID.fromString("42abf604-4a75-4425-b98a-7fa6da52cc4b"));
         sender.setUsername("sender");
         sender.setRole(UserDummy.Role.USER);
     }
@@ -24,7 +25,7 @@ class MessagesTest {
         LocalDateTime updatedAt = LocalDateTime.now();
 
         Message message = new Message(
-                1L,
+                UUID.randomUUID(),
                 ROOM_ID,
                 sender.getId(),
                 CONTENT,
@@ -34,7 +35,7 @@ class MessagesTest {
                 updatedAt
         );
 
-        assertEquals(1L, message.getMessageId());
+        assertNotNull(message.getMessageId());
         assertEquals(ROOM_ID, message.getRoomId());
         assertEquals(sender.getId(), message.getSenderUserId());
         assertEquals(CONTENT, message.getContent());
@@ -73,7 +74,7 @@ class MessagesTest {
     void testInvalidRoomId() {
         assertThrows(IllegalArgumentException.class, () -> {
             new Message(
-                    -1L,
+                    null,
                     sender.getId(),
                     CONTENT
             );
@@ -103,5 +104,4 @@ class MessagesTest {
         assertNotNull(message.getUpdatedAt());
         assertTrue(message.getUpdatedAt().isAfter(message.getCreatedAt().minusSeconds(1)));
     }
-
 }
