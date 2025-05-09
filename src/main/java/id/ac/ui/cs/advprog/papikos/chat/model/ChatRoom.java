@@ -10,6 +10,7 @@ import java.util.UUID;
 @Entity
 @Table(
         name = "chat_rooms",
+        schema = "papikos_chat",
         uniqueConstraints = @UniqueConstraint(
                 name = "uq_user_pair",
                 columnNames = {"user1_id", "user2_id"}
@@ -49,8 +50,6 @@ public class ChatRoom {
         this.user1Id = users[0];
         this.user2Id = users[1];
         this.lastMessageAt = null; //TODO: hubungkan dengan timestamp last message
-        this.createdAt = LocalDateTime.now(); //TODO: integrasi dengan database
-        this.updatedAt = LocalDateTime.now(); //TODO: integrasi dengan database
     }
 
     private UUID[] validateAndSwapUsers(UUID inputUser1, UUID inputUser2) {
