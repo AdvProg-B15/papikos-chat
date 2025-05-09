@@ -49,7 +49,7 @@ public class ChatRoom {
         UUID[] users = validateAndSwapUsers(user1Id, user2Id);
         this.user1Id = users[0];
         this.user2Id = users[1];
-        this.lastMessageAt = null; //TODO: hubungkan dengan timestamp last message
+        this.lastMessageAt = null;
     }
 
     private UUID[] validateAndSwapUsers(UUID inputUser1, UUID inputUser2) {
