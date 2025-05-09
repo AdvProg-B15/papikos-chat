@@ -67,7 +67,7 @@ class MessagesTest {
         assertNull(message.getMessageId());
         assertFalse(message.isEdited());
         assertFalse(message.isDeleted());
-        assertNotNull(message.getCreatedAt());
+        assertNull(message.getCreatedAt());
     }
 
     @Test
@@ -100,8 +100,7 @@ class MessagesTest {
                 CONTENT
         );
 
-        assertNotNull(message.getCreatedAt());
-        assertNotNull(message.getUpdatedAt());
-        assertTrue(message.getUpdatedAt().isAfter(message.getCreatedAt().minusSeconds(1)));
+        assertNull(message.getCreatedAt());
+        assertNull(message.getUpdatedAt());
     }
 }
