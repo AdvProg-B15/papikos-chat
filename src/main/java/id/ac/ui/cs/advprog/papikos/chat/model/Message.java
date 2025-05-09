@@ -9,7 +9,9 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "messages")
+@Table(
+        name = "messages",
+        schema = "papikos_chat")
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -52,8 +54,6 @@ public class Message {
         this.roomId = roomId;
         this.senderUserId = senderUserId;
         this.content = content;
-        this.createdAt = LocalDateTime.now(); //TODO: integrasi dengan database
-        this.updatedAt = LocalDateTime.now(); //TODO: integrasi dengan database
     }
 
     private void validateInput(UUID roomId, UUID senderUserId, String content) {
