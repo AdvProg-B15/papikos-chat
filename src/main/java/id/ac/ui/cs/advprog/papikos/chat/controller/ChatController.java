@@ -4,7 +4,6 @@ import id.ac.ui.cs.advprog.papikos.chat.command.CreateChatRoomCommand;
 import id.ac.ui.cs.advprog.papikos.chat.command.DeleteMessageCommand;
 import id.ac.ui.cs.advprog.papikos.chat.command.EditMessageCommand;
 import id.ac.ui.cs.advprog.papikos.chat.command.GetChatRoomsCommand;
-import id.ac.ui.cs.advprog.papikos.chat.command.GetMessagesCommand;
 import id.ac.ui.cs.advprog.papikos.chat.command.SendMessageCommand;
 import id.ac.ui.cs.advprog.papikos.chat.dto.ChatRoomRequest;
 import id.ac.ui.cs.advprog.papikos.chat.dto.MessageRequest;
@@ -13,8 +12,11 @@ import id.ac.ui.cs.advprog.papikos.chat.model.Message;
 import id.ac.ui.cs.advprog.papikos.chat.response.ApiResponse;
 import id.ac.ui.cs.advprog.papikos.chat.service.ChatRoomService;
 import id.ac.ui.cs.advprog.papikos.chat.service.MessageService;
+import id.ac.ui.cs.advprog.papikos.chat.sse.ChatSseService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.UUID;
@@ -25,11 +27,13 @@ public class ChatController {
 
     private final ChatRoomService chatRoomService;
     private final MessageService messageService;
+    private final ChatSseService chatSseService;
 
     @Autowired
-    public ChatController(ChatRoomService chatRoomService, MessageService messageService) {
+    public ChatController(ChatRoomService chatRoomService, MessageService messageService, ChatSseService chatSseService) {
         this.chatRoomService = chatRoomService;
         this.messageService = messageService;
+        this.chatSseService = chatSseService;
     }
 
     @GetMapping
@@ -48,10 +52,9 @@ public class ChatController {
         return new SendMessageCommand(messageService, roomId, request).execute();
     }
 
-    @GetMapping("/{roomId}/messages")
-    public ApiResponse<List<Message>> getMessages(@PathVariable UUID roomId,
-                                                  @RequestParam(defaultValue = "asc") String order) {
-        return new GetMessagesCommand(messageService, roomId, order).execute();
+    @GetMapping(value = "/{roomId}/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamMessages(@PathVariable UUID roomId) {
+        return chatSseService.subscribeToRoom(roomId);
     }
 
     @PutMapping("{roomId}/message/{messageId}")

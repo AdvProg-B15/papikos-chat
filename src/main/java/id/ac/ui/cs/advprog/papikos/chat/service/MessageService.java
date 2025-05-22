@@ -4,7 +4,9 @@ import id.ac.ui.cs.advprog.papikos.chat.model.ChatRoom;
 import id.ac.ui.cs.advprog.papikos.chat.model.Message;
 import id.ac.ui.cs.advprog.papikos.chat.repository.ChatRoomRepository;
 import id.ac.ui.cs.advprog.papikos.chat.repository.MessageRepository;
+import id.ac.ui.cs.advprog.papikos.chat.sse.ChatSseService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,12 +18,15 @@ public class MessageService {
 
     private final MessageRepository messagesRepository;
     private final ChatRoomRepository chatRoomsRepository;
+    private final ChatSseService chatSseService;
 
     @Autowired
     public MessageService(MessageRepository messagesRepository,
-                          ChatRoomRepository chatRoomsRepository) {
+                          ChatRoomRepository chatRoomsRepository, @Lazy ChatSseService chatSseService) {
         this.messagesRepository = messagesRepository;
         this.chatRoomsRepository = chatRoomsRepository;
+        this.chatSseService = chatSseService;
+
     }
 
     public Message sendMessage(UUID roomId, UUID senderUserId, String content) {
@@ -32,6 +37,8 @@ public class MessageService {
                 .orElseThrow(() -> new IllegalArgumentException("Chat room not found"));
         chatRoom.setLastMessageAt(savedMessage.getCreatedAt());
         chatRoomsRepository.save(chatRoom);
+
+        chatSseService.sendMessageToRoom(roomId);
 
         return savedMessage;
     }
