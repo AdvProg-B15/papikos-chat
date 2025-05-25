@@ -12,8 +12,6 @@ public interface ChatRoomService {
 
     ChatRoom getChatRoomById(UUID roomId);
 
-    Optional<ChatRoom> findChatRoomByUserPair(UUID user1Id, UUID user2Id);
-
     List<ChatRoom> getAllChatRoomsForUser(UUID userId);
 
     ChatRoom updateLastMessageAt(UUID roomId, LocalDateTime timestamp);

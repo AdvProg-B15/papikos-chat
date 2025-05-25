@@ -40,13 +40,6 @@ public class ChatRoomServiceImpl implements ChatRoomService{
     }
 
     @Transactional(readOnly = true)
-    public Optional<ChatRoom> findChatRoomByUserPair(UUID user1Id, UUID user2Id) {
-        validateUserIds(user1Id, user2Id);
-        UUID[] orderedUserIds = orderUserIds(user1Id, user2Id);
-        return chatRoomsRepository.findByUser1IdAndUser2Id(orderedUserIds[0], orderedUserIds[1]);
-    }
-
-    @Transactional(readOnly = true)
     public List<ChatRoom> getAllChatRoomsForUser(UUID userId) {
         validateUserId(userId);
         return chatRoomsRepository.findByUser1IdOrUser2Id(userId, userId);
