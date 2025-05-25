@@ -1,10 +1,5 @@
 package id.ac.ui.cs.advprog.papikos.chat.controller;
 
-import id.ac.ui.cs.advprog.papikos.chat.command.CreateChatRoomCommand;
-import id.ac.ui.cs.advprog.papikos.chat.command.DeleteMessageCommand;
-import id.ac.ui.cs.advprog.papikos.chat.command.EditMessageCommand;
-import id.ac.ui.cs.advprog.papikos.chat.command.GetChatRoomsCommand;
-import id.ac.ui.cs.advprog.papikos.chat.command.SendMessageCommand;
 import id.ac.ui.cs.advprog.papikos.chat.dto.ChatRoomRequest;
 import id.ac.ui.cs.advprog.papikos.chat.dto.MessageRequest;
 import id.ac.ui.cs.advprog.papikos.chat.model.ChatRoom;
@@ -14,6 +9,7 @@ import id.ac.ui.cs.advprog.papikos.chat.service.ChatRoomService;
 import id.ac.ui.cs.advprog.papikos.chat.service.MessageService;
 import id.ac.ui.cs.advprog.papikos.chat.sse.ChatSseService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -38,20 +34,58 @@ public class ChatController {
         this.chatSseService = chatSseService;
     }
 
+    /**
+     * Helper method to extract UUID from the authentication principal.
+     * Throws an IllegalStateException if the authentication or principal is missing, or if the principal is not a valid UUID.
+     */
+    private UUID getUserIdFromAuthentication(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            throw new IllegalStateException("Authentication principal is required but missing.");
+        }
+        try {
+            return UUID.fromString(authentication.getName());
+        } catch (IllegalArgumentException e) {
+            System.err.println("Error parsing UUID from principal name: " + authentication.getName());
+            throw new IllegalArgumentException("Invalid user identifier format in authentication token.");
+        }
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<List<ChatRoom>>> getChatRoomsForUser(Authentication authentication) {
-        return new GetChatRoomsCommand(authentication, chatRoomService).execute();
+        UUID userId = getUserIdFromAuthentication(authentication);
+        List<ChatRoom> chatRooms = chatRoomService.getAllChatRoomsForUser(userId);
+        ApiResponse<List<ChatRoom>> response = ApiResponse.<List<ChatRoom>>builder()
+                .status(HttpStatus.OK)
+                .message("Chat rooms retrieved successfully")
+                .data(chatRooms)
+                .build();
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<ChatRoom>> createChatRoom(@RequestBody ChatRoomRequest request) {
-        return new CreateChatRoomCommand(chatRoomService, request).execute();
+    public ResponseEntity<ApiResponse<ChatRoom>> createChatRoom(@RequestBody ChatRoomRequest request, Authentication authentication) {
+        UUID senderId = getUserIdFromAuthentication(authentication);
+        ChatRoom chatRoom = chatRoomService.createChatRoom(senderId, request.getRecipientId());
+        ApiResponse<ChatRoom> response = ApiResponse.<ChatRoom>builder()
+                .status(HttpStatus.CREATED)
+                .message("Chat room created successfully!")
+                .data(chatRoom)
+                .build();
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/{roomId}/messages")
     public ResponseEntity<ApiResponse<Message>> sendMessage(@PathVariable UUID roomId,
-                                            @RequestBody MessageRequest request) {
-        return new SendMessageCommand(messageService, roomId, request).execute();
+                                                            @RequestBody MessageRequest request,
+                                                            Authentication authentication) {
+        UUID senderId = getUserIdFromAuthentication(authentication);
+        Message message = messageService.sendMessage(roomId, senderId, request.getContent());
+        ApiResponse<Message> response = ApiResponse.<Message>builder()
+                .status(HttpStatus.CREATED)
+                .message("Message sent successfully")
+                .data(message)
+                .build();
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping(value = "/{roomId}/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -59,17 +93,32 @@ public class ChatController {
         return chatSseService.subscribeToRoom(roomId);
     }
 
-    @PutMapping("{roomId}/message/{messageId}")
+    @PutMapping("/{roomId}/message/{messageId}")
     public ResponseEntity<ApiResponse<Message>> editMessage(@PathVariable UUID roomId,
-                                            @PathVariable UUID messageId,
-                                            @RequestBody MessageRequest request) {
-        return new EditMessageCommand(messageService, messageId, request).execute();
+                                                            @PathVariable UUID messageId,
+                                                            @RequestBody MessageRequest request,
+                                                            Authentication authentication) {
+        UUID userId = getUserIdFromAuthentication(authentication);
+        Message updatedMessage = messageService.editMessageContent(messageId, userId, request.getContent());
+        ApiResponse<Message> response = ApiResponse.<Message>builder()
+                .status(HttpStatus.OK)
+                .message("Message updated successfully")
+                .data(updatedMessage)
+                .build();
+        return ResponseEntity.ok(response);
     }
 
-    @DeleteMapping("{roomId}/message/{messageId}")
+    @DeleteMapping("/{roomId}/message/{messageId}")
     public ResponseEntity<ApiResponse<Message>> deleteMessage(@PathVariable UUID roomId,
-                                              @PathVariable UUID messageId,
-                                              @RequestBody MessageRequest request) {
-        return new DeleteMessageCommand(messageService, messageId, request).execute();
+                                                              @PathVariable UUID messageId,
+                                                              Authentication authentication) {
+        UUID userId = getUserIdFromAuthentication(authentication);
+        Message deletedMessage = messageService.markMessageAsDeleted(messageId, userId);
+        ApiResponse<Message> response = ApiResponse.<Message>builder()
+                .status(HttpStatus.OK)
+                .message("Message deleted successfully")
+                .data(deletedMessage)
+                .build();
+        return ResponseEntity.ok(response);
     }
 }

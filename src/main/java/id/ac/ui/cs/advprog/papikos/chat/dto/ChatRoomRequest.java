@@ -7,6 +7,5 @@ import lombok.Setter;
 @Getter
 @Setter
 public class ChatRoomRequest {
-    private UUID senderId;
     private UUID recipientId;
 }

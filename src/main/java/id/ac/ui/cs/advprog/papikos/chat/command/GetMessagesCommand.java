@@ -21,7 +21,6 @@ public class GetMessagesCommand implements ChatCommand<List<Message>> {
         this.order = order;
     }
 
-    // Java
     @Override
     public ResponseEntity<ApiResponse<List<Message>>> execute() {
         List<Message> messages;
