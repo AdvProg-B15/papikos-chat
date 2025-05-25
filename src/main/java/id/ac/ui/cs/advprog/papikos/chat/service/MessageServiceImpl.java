@@ -51,7 +51,7 @@ public class MessageServiceImpl implements MessageService{
         return messagesRepository.findByRoomIdOrderByCreatedAtDesc(roomId);
     }
 
-    public Message editMessageContent(UUID messageId, UUID userId, String newContent) {
+    public Message editMessageContent(UUID roomId, UUID messageId, UUID userId, String newContent) {
         Optional<Message> messageOpt = messagesRepository.findById(messageId);
         if (messageOpt.isEmpty()) {
             throw new IllegalArgumentException("Message not found");
@@ -68,10 +68,12 @@ public class MessageServiceImpl implements MessageService{
 
         message.setContent(newContent);
         message.setEdited(true);
+        chatSseService.sendMessageToRoom(roomId);
+
         return messagesRepository.save(message);
     }
 
-    public Message markMessageAsDeleted(UUID messageId, UUID userId) {
+    public Message markMessageAsDeleted(UUID roomId, UUID messageId, UUID userId) {
         Optional<Message> messageOpt = messagesRepository.findById(messageId);
         if (messageOpt.isEmpty()) {
             throw new IllegalArgumentException("Message not found");
@@ -84,6 +86,7 @@ public class MessageServiceImpl implements MessageService{
 
         message.setDeleted(true);
         message.setContent("[deleted]");
+        chatSseService.sendMessageToRoom(roomId);
         return messagesRepository.save(message);
     }
 

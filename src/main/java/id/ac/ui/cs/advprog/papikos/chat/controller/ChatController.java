@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/chat")
+@RequestMapping("api/v1")
 public class ChatController {
 
     private final ChatRoomService chatRoomService;
@@ -99,7 +99,8 @@ public class ChatController {
                                                             @RequestBody MessageRequest request,
                                                             Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
-        Message updatedMessage = messageService.editMessageContent(messageId, userId, request.getContent());
+        Message updatedMessage = messageService.editMessageContent(roomId, messageId, userId, request.getContent());
+
         ApiResponse<Message> response = ApiResponse.<Message>builder()
                 .status(HttpStatus.OK)
                 .message("Message updated successfully")
@@ -113,7 +114,7 @@ public class ChatController {
                                                               @PathVariable UUID messageId,
                                                               Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
-        Message deletedMessage = messageService.markMessageAsDeleted(messageId, userId);
+        Message deletedMessage = messageService.markMessageAsDeleted(roomId, messageId, userId);
         ApiResponse<Message> response = ApiResponse.<Message>builder()
                 .status(HttpStatus.OK)
                 .message("Message deleted successfully")

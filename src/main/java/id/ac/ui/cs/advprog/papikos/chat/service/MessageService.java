@@ -13,9 +13,9 @@ public interface MessageService {
 
     List<Message> getMessagesByRoomDesc(UUID roomId);
 
-    Message editMessageContent(UUID messageId, UUID userId, String newContent);
+    Message editMessageContent(UUID roomId, UUID messageId, UUID userId, String newContent);
 
-    Message markMessageAsDeleted(UUID messageId, UUID userId);
+    Message markMessageAsDeleted(UUID roomId, UUID messageId, UUID userId);
 
     Optional<Message> getLatestMessageInRoom(UUID roomId);
 }
