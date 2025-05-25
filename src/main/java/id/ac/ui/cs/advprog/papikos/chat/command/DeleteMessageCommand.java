@@ -4,6 +4,8 @@ import id.ac.ui.cs.advprog.papikos.chat.dto.MessageRequest;
 import id.ac.ui.cs.advprog.papikos.chat.model.Message;
 import id.ac.ui.cs.advprog.papikos.chat.response.ApiResponse;
 import id.ac.ui.cs.advprog.papikos.chat.service.MessageService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.util.UUID;
 
@@ -20,8 +22,14 @@ public class DeleteMessageCommand implements ChatCommand<Message> {
     }
 
     @Override
-    public ApiResponse<Message> execute() {
+    public ResponseEntity<ApiResponse<Message>> execute() {
         Message deletedMessage = messageService.markMessageAsDeleted(messageId, request.getSenderUserId());
-        return ApiResponse.<Message>builder().ok(deletedMessage);
+        ApiResponse<Message> response = ApiResponse.<Message>builder()
+                .status(HttpStatus.OK)
+                .message("Message deleted successfully!")
+                .data(deletedMessage)
+                .build();
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
+
 }

@@ -5,6 +5,7 @@ import id.ac.ui.cs.advprog.papikos.chat.model.Message;
 import id.ac.ui.cs.advprog.papikos.chat.response.ApiResponse;
 import id.ac.ui.cs.advprog.papikos.chat.service.MessageService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -31,8 +32,13 @@ public class ChatSseService {
         addEmitter(roomId, emitter);
 
         try {
-            ApiResponse<List<Message>> response = new GetMessagesCommand(messageService, roomId, "asc").execute();
-            emitter.send(SseEmitter.event().name("initial").data(response.getData()));
+            ResponseEntity<ApiResponse<List<Message>>> responseEntity =
+                    new GetMessagesCommand(messageService, roomId, "asc").execute();
+            if (responseEntity.getBody() != null) {
+                emitter.send(SseEmitter.event()
+                        .name("initial")
+                        .data(responseEntity.getBody().getData()));
+            }
         } catch (IOException e) {
             emitter.completeWithError(e);
         }
@@ -46,10 +52,14 @@ public class ChatSseService {
     public void sendMessageToRoom(UUID roomId) {
         List<SseEmitter> roomEmitters = emitters.get(roomId);
         if (roomEmitters != null) {
-            ApiResponse<List<Message>> response = new GetMessagesCommand(messageService, roomId, "asc").execute();
+            ResponseEntity<ApiResponse<List<Message>>> responseEntity =
+                    new GetMessagesCommand(messageService, roomId, "asc").execute();
+            List<Message> messages = responseEntity.getBody() != null
+                    ? responseEntity.getBody().getData()
+                    : null;
             for (SseEmitter emitter : roomEmitters) {
                 try {
-                    emitter.send(SseEmitter.event().name("update").data(response.getData()));
+                    emitter.send(SseEmitter.event().name("update").data(messages));
                 } catch (IOException e) {
                     emitter.completeWithError(e);
                     removeEmitter(roomId, emitter);

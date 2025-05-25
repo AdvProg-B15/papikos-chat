@@ -15,6 +15,7 @@ import id.ac.ui.cs.advprog.papikos.chat.service.MessageService;
 import id.ac.ui.cs.advprog.papikos.chat.sse.ChatSseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -37,17 +38,17 @@ public class ChatController {
     }
 
     @GetMapping
-    public ApiResponse<List<ChatRoom>> getChatRoomsForUser(@RequestBody ChatRoomRequest request) {
+    public ResponseEntity<ApiResponse<List<ChatRoom>>> getChatRoomsForUser(@RequestBody ChatRoomRequest request) {
         return new GetChatRoomsCommand(chatRoomService, request).execute();
     }
 
     @PostMapping
-    public ApiResponse<ChatRoom> createChatRoom(@RequestBody ChatRoomRequest request) {
+    public ResponseEntity<ApiResponse<ChatRoom>> createChatRoom(@RequestBody ChatRoomRequest request) {
         return new CreateChatRoomCommand(chatRoomService, request).execute();
     }
 
     @PostMapping("/{roomId}/messages")
-    public ApiResponse<Message> sendMessage(@PathVariable UUID roomId,
+    public ResponseEntity<ApiResponse<Message>> sendMessage(@PathVariable UUID roomId,
                                             @RequestBody MessageRequest request) {
         return new SendMessageCommand(messageService, roomId, request).execute();
     }
@@ -58,14 +59,14 @@ public class ChatController {
     }
 
     @PutMapping("{roomId}/message/{messageId}")
-    public ApiResponse<Message> editMessage(@PathVariable UUID roomId,
+    public ResponseEntity<ApiResponse<Message>> editMessage(@PathVariable UUID roomId,
                                             @PathVariable UUID messageId,
                                             @RequestBody MessageRequest request) {
         return new EditMessageCommand(messageService, messageId, request).execute();
     }
 
     @DeleteMapping("{roomId}/message/{messageId}")
-    public ApiResponse<Message> deleteMessage(@PathVariable UUID roomId,
+    public ResponseEntity<ApiResponse<Message>> deleteMessage(@PathVariable UUID roomId,
                                               @PathVariable UUID messageId,
                                               @RequestBody MessageRequest request) {
         return new DeleteMessageCommand(messageService, messageId, request).execute();

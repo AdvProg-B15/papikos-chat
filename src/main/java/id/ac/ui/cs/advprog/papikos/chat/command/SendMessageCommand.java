@@ -4,6 +4,8 @@ import id.ac.ui.cs.advprog.papikos.chat.dto.MessageRequest;
 import id.ac.ui.cs.advprog.papikos.chat.model.Message;
 import id.ac.ui.cs.advprog.papikos.chat.response.ApiResponse;
 import id.ac.ui.cs.advprog.papikos.chat.service.MessageService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.util.UUID;
 
@@ -20,8 +22,13 @@ public class SendMessageCommand implements ChatCommand<Message> {
     }
 
     @Override
-    public ApiResponse<Message> execute() {
+    public ResponseEntity<ApiResponse<Message>> execute() {
         Message message = messageService.sendMessage(roomId, request.getSenderUserId(), request.getContent());
-        return ApiResponse.<Message>builder().created(message);
+        ApiResponse<Message> response = ApiResponse.<Message>builder()
+                .status(HttpStatus.CREATED)
+                .message("Message sent successfully")
+                .data(message)
+                .build();
+        return ResponseEntity.ok(response);
     }
 }
