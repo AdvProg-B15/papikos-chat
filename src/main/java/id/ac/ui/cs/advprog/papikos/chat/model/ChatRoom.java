@@ -10,7 +10,6 @@ import java.util.UUID;
 @Entity
 @Table(
         name = "chat_rooms",
-        schema = "papikos_chat",
         uniqueConstraints = @UniqueConstraint(
                 name = "uq_user_pair",
                 columnNames = {"user1_id", "user2_id"}
