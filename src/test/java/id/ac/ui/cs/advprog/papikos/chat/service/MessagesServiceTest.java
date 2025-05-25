@@ -4,15 +4,17 @@ import id.ac.ui.cs.advprog.papikos.chat.model.ChatRoom;
 import id.ac.ui.cs.advprog.papikos.chat.model.Message;
 import id.ac.ui.cs.advprog.papikos.chat.repository.ChatRoomRepository;
 import id.ac.ui.cs.advprog.papikos.chat.repository.MessageRepository;
+import id.ac.ui.cs.advprog.papikos.chat.sse.ChatSseService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,144 +27,313 @@ import static org.mockito.Mockito.*;
 class MessagesServiceTest {
 
     @Mock
-    private MessageRepository messagesRepository;
+    private MessageRepository messageRepository; // 'messagesRepository' di service
 
     @Mock
-    private ChatRoomRepository chatRoomsRepository;
+    private ChatRoomRepository chatRoomRepository; // 'chatRoomsRepository' di service
+
+    @Mock
+    private ChatSseService chatSseService;
 
     @InjectMocks
-    private MessageService messagesService;
+    private MessageServiceImpl messageService;
 
-    private Message testMessage;
-    private final UUID validRoomId = UUID.randomUUID();
-    private final UUID validUserId = UUID.randomUUID();
-    private final UUID invalidUserId = UUID.randomUUID();
-    private final UUID messageId = UUID.randomUUID();
+    private UUID roomId;
+    private UUID senderUserId;
+    private UUID messageId;
+    private String content;
+    private ChatRoom chatRoomMock;
 
     @BeforeEach
     void setUp() {
-        testMessage = new Message(validRoomId, validUserId, "Test message");
-        testMessage.setMessageId(messageId);
-        testMessage.setCreatedAt(LocalDateTime.now());
+        roomId = UUID.randomUUID();
+        senderUserId = UUID.randomUUID();
+        messageId = UUID.randomUUID();
+        content = "Hello, world!";
+
+        chatRoomMock = mock(ChatRoom.class);
     }
 
     @Test
-    void testSendMessage() {
-        UUID user1Id = UUID.randomUUID();
-        UUID user2Id = UUID.randomUUID();
-        String messageContent = "Hello World";
+    void sendMessage_Success() {
+        Message savedMessage = Message.builder()
+                .messageId(UUID.randomUUID())
+                .roomId(roomId)
+                .senderUserId(senderUserId)
+                .content(content)
+                .createdAt(LocalDateTime.now())
+                .isEdited(false)
+                .isDeleted(false)
+                .build();
 
-        ChatRoom mockRoom = new ChatRoom(user1Id, user2Id);
-        mockRoom.setRoomId(validRoomId);
+        when(messageRepository.save(any(Message.class))).thenReturn(savedMessage);
+        when(chatRoomRepository.findById(roomId)).thenReturn(Optional.of(chatRoomMock));
+        when(chatRoomRepository.save(chatRoomMock)).thenReturn(chatRoomMock);
+        doNothing().when(chatSseService).sendMessageToRoom(roomId);
 
-        LocalDateTime testTime = LocalDateTime.now();
+        Message result = messageService.sendMessage(roomId, senderUserId, content);
 
-        when(messagesRepository.save(any()))
-                .thenAnswer(invocation -> {
-                    Message msg = invocation.getArgument(0);
-                    msg.setMessageId(UUID.randomUUID());
-                    msg.setCreatedAt(testTime);
-                    msg.setUpdatedAt(testTime);
-                    return msg;
-                });
+        assertNotNull(result);
+        assertEquals(savedMessage.getMessageId(), result.getMessageId());
+        assertEquals(senderUserId, result.getSenderUserId());
+        assertEquals(content, result.getContent());
+        assertEquals(savedMessage.getCreatedAt(), result.getCreatedAt());
+        assertFalse(result.isEdited());
+        assertFalse(result.isDeleted());
 
-        when(chatRoomsRepository.findById(validRoomId))
-                .thenReturn(Optional.of(mockRoom));
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(messageRepository).save(messageCaptor.capture());
+        Message messageToSave = messageCaptor.getValue();
+        assertEquals(roomId, messageToSave.getRoomId());
+        assertEquals(senderUserId, messageToSave.getSenderUserId());
+        assertEquals(content, messageToSave.getContent());
+        assertFalse(messageToSave.isEdited(), "Newly created message should not be edited");
+        assertFalse(messageToSave.isDeleted(), "Newly created message should not be deleted");
 
-        Message result = messagesService.sendMessage(validRoomId, validUserId, messageContent);
 
-        assertNotNull(result, "Result should not be null");
-        assertEquals(validUserId, result.getSenderUserId(), "Sender ID mismatch");
-        assertEquals(validRoomId, result.getRoomId(), "Room ID mismatch");
-        assertEquals(messageContent, result.getContent(), "Content mismatch");
-        assertEquals(testTime, result.getCreatedAt(), "Created timestamp mismatch");
-        assertEquals(testTime, result.getUpdatedAt(), "Updated timestamp mismatch");
-
-        verify(messagesRepository, times(1)).save(any());
-        verify(chatRoomsRepository, times(1)).findById(validRoomId);
-        verify(chatRoomsRepository, times(1)).save(any());
-
-        ChatRoom updatedRoom = chatRoomsRepository.findById(validRoomId).orElseThrow();
-        assertEquals(testTime, updatedRoom.getLastMessageAt(), "Last message timestamp not updated");
+        verify(chatRoomRepository).findById(roomId);
+        verify(chatRoomMock).setLastMessageAt(savedMessage.getCreatedAt());
+        verify(chatRoomRepository).save(chatRoomMock);
+        verify(chatSseService).sendMessageToRoom(roomId);
     }
 
     @Test
-    void testGetMessagesByRoomAsc() {
-        when(messagesRepository.findByRoomIdOrderByCreatedAtAsc(validRoomId))
-                .thenReturn(Collections.singletonList(testMessage));
+    void sendMessage_ChatRoomNotFound_ThrowsIllegalArgumentException() {
 
-        List<Message> messages = messagesService.getMessagesByRoomAsc(validRoomId);
+        when(chatRoomRepository.findById(roomId)).thenReturn(Optional.empty());
 
-        assertEquals(1, messages.size());
-        assertEquals(testMessage, messages.get(0));
+        Message messageToBeSaved = new Message(roomId, senderUserId, content);
+        when(messageRepository.save(any(Message.class))).thenReturn(messageToBeSaved);
+
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            messageService.sendMessage(roomId, senderUserId, content);
+        });
+        assertEquals("Chat room not found", exception.getMessage());
+
+        verify(messageRepository).save(any(Message.class));
+        verify(chatRoomRepository).findById(roomId);
+        verify(chatRoomRepository, never()).save(any(ChatRoom.class));
+        verify(chatSseService, never()).sendMessageToRoom(any(UUID.class));
+    }
+
+
+    @Test
+    void sendMessage_InvalidContent_ThrowsIllegalArgumentExceptionFromModel() {
+        String invalidContent = " "; // Konten kosong atau null akan ditolak oleh constructor Message
+        assertThrows(IllegalArgumentException.class, () -> {
+            messageService.sendMessage(roomId, senderUserId, invalidContent);
+        }, "Message content cannot be empty"); // Pesan dari constructor Message
+
+        verify(messageRepository, never()).save(any(Message.class));
+        verify(chatRoomRepository, never()).findById(any(UUID.class));
+    }
+
+
+    @Test
+    void getMessagesByRoomAsc_Success() {
+        Message msg1 = Message.builder().roomId(roomId).senderUserId(senderUserId).content("msg1").createdAt(LocalDateTime.now().minusMinutes(2)).build();
+        Message msg2 = Message.builder().roomId(roomId).senderUserId(senderUserId).content("msg2").createdAt(LocalDateTime.now().minusMinutes(1)).build();
+        List<Message> expectedMessages = Arrays.asList(msg1, msg2);
+
+        when(messageRepository.findByRoomIdOrderByCreatedAtAsc(roomId)).thenReturn(expectedMessages);
+
+        List<Message> actualMessages = messageService.getMessagesByRoomAsc(roomId);
+
+        assertEquals(expectedMessages, actualMessages);
+        verify(messageRepository).findByRoomIdOrderByCreatedAtAsc(roomId);
     }
 
     @Test
-    void testEditMessageContent_Success() {
-        when(messagesRepository.findById(messageId)).thenReturn(Optional.of(testMessage));
-        when(messagesRepository.save(any(Message.class))).thenReturn(testMessage);
+    void getMessagesByRoomDesc_Success() {
+        Message msg1 = Message.builder().roomId(roomId).senderUserId(senderUserId).content("msg1").createdAt(LocalDateTime.now().minusMinutes(1)).build(); // msg1 lebih baru
+        Message msg2 = Message.builder().roomId(roomId).senderUserId(senderUserId).content("msg2").createdAt(LocalDateTime.now().minusMinutes(2)).build();
+        List<Message> expectedMessages = Arrays.asList(msg1, msg2);
 
-        Message editedMessage = messagesService.editMessageContent(messageId, validUserId, "Edited message");
+        when(messageRepository.findByRoomIdOrderByCreatedAtDesc(roomId)).thenReturn(expectedMessages);
 
-        assertEquals("Edited message", editedMessage.getContent());
-        assertTrue(editedMessage.isEdited());
-        verify(messagesRepository, times(1)).save(testMessage);
+        List<Message> actualMessages = messageService.getMessagesByRoomDesc(roomId);
+
+        assertEquals(expectedMessages, actualMessages);
+        verify(messageRepository).findByRoomIdOrderByCreatedAtDesc(roomId);
     }
 
     @Test
-    void testEditMessageContent_UnauthorizedUser() {
-        when(messagesRepository.findById(messageId)).thenReturn(Optional.of(testMessage));
+    void editMessageContent_Success() {
+        String newContent = "Updated content";
+        Message messageToEdit = Message.builder()
+                .messageId(messageId)
+                .roomId(roomId)
+                .senderUserId(senderUserId)
+                .content(content)
+                .isDeleted(false)
+                .isEdited(false)
+                .createdAt(LocalDateTime.now().minusHours(1))
+                .build();
 
-        assertThrows(SecurityException.class, () ->
-                messagesService.editMessageContent(messageId, invalidUserId, "Edited message"));
+        when(messageRepository.findById(messageId)).thenReturn(Optional.of(messageToEdit));
+        when(messageRepository.save(any(Message.class))).thenAnswer(invocation -> {
+            return invocation.<Message>getArgument(0);
+        });
+        doNothing().when(chatSseService).sendMessageToRoom(roomId);
+
+        Message result = messageService.editMessageContent(roomId, messageId, senderUserId, newContent);
+
+        assertNotNull(result);
+        assertEquals(messageId, result.getMessageId());
+        assertEquals(newContent, result.getContent());
+        assertTrue(result.isEdited());
+        assertFalse(result.isDeleted());
+
+        verify(messageRepository).findById(messageId);
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(messageRepository).save(messageCaptor.capture());
+        Message savedArg = messageCaptor.getValue();
+        assertEquals(newContent, savedArg.getContent());
+        assertTrue(savedArg.isEdited());
+
+        verify(chatSseService).sendMessageToRoom(roomId);
     }
 
     @Test
-    void testMarkMessageAsDeleted_Success() {
-        when(messagesRepository.findById(messageId)).thenReturn(Optional.of(testMessage));
-        when(messagesRepository.save(any(Message.class))).thenReturn(testMessage);
+    void editMessageContent_MessageNotFound_ThrowsIllegalArgumentException() {
+        when(messageRepository.findById(messageId)).thenReturn(Optional.empty());
 
-        Message deletedMessage = messagesService.markMessageAsDeleted(messageId, validUserId);
-
-        assertTrue(deletedMessage.isDeleted());
-        assertEquals("[deleted]", deletedMessage.getContent());
-        verify(messagesRepository, times(1)).save(testMessage);
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            messageService.editMessageContent(roomId, messageId, senderUserId, "new content");
+        });
+        assertEquals("Message not found", exception.getMessage());
+        verify(messageRepository).findById(messageId);
+        verify(messageRepository, never()).save(any(Message.class));
+        verify(chatSseService, never()).sendMessageToRoom(any(UUID.class));
     }
 
     @Test
-    void testGetLatestMessageInRoom() {
-        when(messagesRepository.findFirstByRoomIdOrderByCreatedAtDesc(validRoomId))
-                .thenReturn(Optional.of(testMessage));
+    void editMessageContent_UnauthorizedUser_ThrowsSecurityException() {
+        UUID attackerId = UUID.randomUUID();
+        Message messageToEdit = Message.builder()
+                .messageId(messageId)
+                .roomId(roomId)
+                .senderUserId(senderUserId)
+                .content(content)
+                .isDeleted(false)
+                .build();
 
-        Optional<Message> result = messagesService.getLatestMessageInRoom(validRoomId);
+        when(messageRepository.findById(messageId)).thenReturn(Optional.of(messageToEdit));
+
+        SecurityException exception = assertThrows(SecurityException.class, () -> {
+            messageService.editMessageContent(roomId, messageId, attackerId, "new content");
+        });
+        assertEquals("Unauthorized to edit this message", exception.getMessage());
+        verify(messageRepository).findById(messageId);
+        verify(messageRepository, never()).save(any(Message.class));
+        verify(chatSseService, never()).sendMessageToRoom(any(UUID.class));
+    }
+
+    @Test
+    void editMessageContent_MessageIsDeleted_ThrowsIllegalStateException() {
+        Message deletedMessage = Message.builder()
+                .messageId(messageId)
+                .roomId(roomId)
+                .senderUserId(senderUserId)
+                .content(content)
+                .isDeleted(true)
+                .build();
+
+        when(messageRepository.findById(messageId)).thenReturn(Optional.of(deletedMessage));
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+            messageService.editMessageContent(roomId, messageId, senderUserId, "new content");
+        });
+        assertEquals("Cannot edit deleted message", exception.getMessage());
+        verify(messageRepository).findById(messageId);
+        verify(messageRepository, never()).save(any(Message.class));
+        verify(chatSseService, never()).sendMessageToRoom(any(UUID.class));
+    }
+
+    @Test
+    void markMessageAsDeleted_Success() {
+        Message messageToDelete = Message.builder()
+                .messageId(messageId)
+                .roomId(roomId)
+                .senderUserId(senderUserId)
+                .content(content)
+                .isDeleted(false)
+                .build();
+
+        when(messageRepository.findById(messageId)).thenReturn(Optional.of(messageToDelete));
+        when(messageRepository.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        doNothing().when(chatSseService).sendMessageToRoom(roomId);
+
+        Message result = messageService.markMessageAsDeleted(roomId, messageId, senderUserId);
+
+        assertNotNull(result);
+        assertEquals(messageId, result.getMessageId());
+        assertTrue(result.isDeleted());
+        assertEquals("[deleted]", result.getContent()); // Konten diubah oleh service
+
+        verify(messageRepository).findById(messageId);
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(messageRepository).save(messageCaptor.capture());
+        assertTrue(messageCaptor.getValue().isDeleted());
+        assertEquals("[deleted]", messageCaptor.getValue().getContent());
+
+        verify(chatSseService).sendMessageToRoom(roomId);
+    }
+
+    @Test
+    void markMessageAsDeleted_MessageNotFound_ThrowsIllegalArgumentException() {
+        when(messageRepository.findById(messageId)).thenReturn(Optional.empty());
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            messageService.markMessageAsDeleted(roomId, messageId, senderUserId);
+        });
+        assertEquals("Message not found", exception.getMessage());
+        verify(messageRepository).findById(messageId); // findById masih dipanggil
+        verify(messageRepository, never()).save(any(Message.class));
+        verify(chatSseService, never()).sendMessageToRoom(any(UUID.class));
+    }
+
+    @Test
+    void markMessageAsDeleted_UnauthorizedUser_ThrowsSecurityException() {
+        UUID attackerId = UUID.randomUUID();
+        Message messageToDelete = Message.builder()
+                .messageId(messageId)
+                .roomId(roomId)
+                .senderUserId(senderUserId)
+                .content(content)
+                .build();
+
+        when(messageRepository.findById(messageId)).thenReturn(Optional.of(messageToDelete));
+
+        SecurityException exception = assertThrows(SecurityException.class, () -> {
+            messageService.markMessageAsDeleted(roomId, messageId, attackerId);
+        });
+        assertEquals("Unauthorized to delete this message", exception.getMessage());
+        verify(messageRepository).findById(messageId); // findById masih dipanggil
+        verify(messageRepository, never()).save(any(Message.class));
+        verify(chatSseService, never()).sendMessageToRoom(any(UUID.class));
+    }
+
+    @Test
+    void getLatestMessageInRoom_MessageExists() {
+        Message latestMessage = Message.builder().roomId(roomId).senderUserId(senderUserId).content("latest").build();
+        when(messageRepository.findFirstByRoomIdOrderByCreatedAtDesc(roomId)).thenReturn(Optional.of(latestMessage));
+
+        Optional<Message> result = messageService.getLatestMessageInRoom(roomId);
+
         assertTrue(result.isPresent());
+        assertEquals(latestMessage, result.get());
+        verify(messageRepository).findFirstByRoomIdOrderByCreatedAtDesc(roomId);
     }
 
     @Test
-    void testEditDeletedMessage_ShouldThrow() {
-        testMessage.setDeleted(true);
-        when(messagesRepository.findById(messageId)).thenReturn(Optional.of(testMessage));
+    void getLatestMessageInRoom_NoMessageExists() {
+        when(messageRepository.findFirstByRoomIdOrderByCreatedAtDesc(roomId)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalStateException.class, () ->
-                messagesService.editMessageContent(messageId, validUserId, "Edited message"));
-    }
+        Optional<Message> result = messageService.getLatestMessageInRoom(roomId);
 
-    @Test
-    void testMessageNotFound_ShouldThrow() {
-        when(messagesRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
-
-        assertThrows(IllegalArgumentException.class, () ->
-                messagesService.editMessageContent(UUID.randomUUID(), validUserId, "Edited message"));
-    }
-
-    @Test
-    void testEmptyRoomMessages() {
-        UUID emptyRoomId = UUID.randomUUID();
-        when(messagesRepository.findByRoomIdOrderByCreatedAtAsc(emptyRoomId))
-                .thenReturn(Collections.emptyList());
-
-        List<Message> messages = messagesService.getMessagesByRoomAsc(emptyRoomId);
-
-        assertTrue(messages.isEmpty());
+        assertFalse(result.isPresent());
+        verify(messageRepository).findFirstByRoomIdOrderByCreatedAtDesc(roomId);
     }
 }

@@ -1,42 +1,38 @@
 package id.ac.ui.cs.advprog.papikos.chat.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.papikos.chat.dto.ChatRoomRequest;
 import id.ac.ui.cs.advprog.papikos.chat.dto.MessageRequest;
 import id.ac.ui.cs.advprog.papikos.chat.model.ChatRoom;
 import id.ac.ui.cs.advprog.papikos.chat.model.Message;
+import id.ac.ui.cs.advprog.papikos.chat.response.ApiResponse;
 import id.ac.ui.cs.advprog.papikos.chat.service.ChatRoomService;
 import id.ac.ui.cs.advprog.papikos.chat.service.MessageService;
+import id.ac.ui.cs.advprog.papikos.chat.sse.ChatSseService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.BDDMockito;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class ChatControllerTest {
-
-    private MockMvc mockMvc;
-
-    @InjectMocks
-    private ChatController chatController;
+class ChatControllerTest {
 
     @Mock
     private ChatRoomService chatRoomService;
@@ -44,192 +40,161 @@ public class ChatControllerTest {
     @Mock
     private MessageService messageService;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Mock
+    private ChatSseService chatSseService;
+
+    @InjectMocks
+    private ChatController chatController;
+
+    private UUID userId1;
+    private UUID userId2;
+    private Authentication authUser1;
 
     @BeforeEach
-    public void setup() {
-        mockMvc = MockMvcBuilders.standaloneSetup(chatController).build();
+    void setUp() {
+        userId1 = UUID.randomUUID();
+        userId2 = UUID.randomUUID();
+        authUser1 = new UsernamePasswordAuthenticationToken(userId1.toString(), null, Collections.emptyList());
     }
 
     @Test
-    public void testGetChatRoomsForUser() throws Exception {
-        UUID senderId = UUID.randomUUID();
+    void getChatRoomsForUser_Success_ReturnsOk() {
+        ChatRoom mockRoom = Mockito.mock(ChatRoom.class);
+
+        List<ChatRoom> expectedRooms = Collections.singletonList(mockRoom);
+        when(chatRoomService.getAllChatRoomsForUser(userId1)).thenReturn(expectedRooms);
+
+        ResponseEntity<ApiResponse<List<ChatRoom>>> responseEntity = chatController.getChatRoomsForUser(authUser1);
+
+        assertNotNull(responseEntity);
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+        ApiResponse<List<ChatRoom>> apiResponse = responseEntity.getBody();
+        assertNotNull(apiResponse);
+        assertEquals(200, apiResponse.getStatus());
+        assertEquals("Chat rooms retrieved successfully", apiResponse.getMessage());
+        assertSame(expectedRooms, apiResponse.getData());
+
+        verify(chatRoomService).getAllChatRoomsForUser(userId1);
+    }
+
+    @Test
+    void getChatRoomsForUser_NullAuthentication_ThrowsIllegalStateException() {
+        Exception exception = assertThrows(IllegalStateException.class, () -> chatController.getChatRoomsForUser(null));
+        assertEquals("Authentication principal is required but missing.", exception.getMessage());
+        verify(chatRoomService, never()).getAllChatRoomsForUser(any());
+    }
+
+    @Test
+    void getChatRoomsForUser_InvalidAuthPrincipalFormat_ThrowsIllegalArgumentException() {
+        Authentication invalidAuth = new UsernamePasswordAuthenticationToken("invalid-uuid-format", null);
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> chatController.getChatRoomsForUser(invalidAuth));
+        assertEquals("Invalid user identifier format in authentication token.", exception.getMessage());
+        verify(chatRoomService, never()).getAllChatRoomsForUser(any());
+    }
+
+    @Test
+    void createChatRoom_Success_ReturnsCreated() {
         ChatRoomRequest request = new ChatRoomRequest();
-        request.setSenderId(senderId);
+        request.setRecipientId(userId2);
 
-        ChatRoom chatRoom = ChatRoom.builder()
-                .roomId(UUID.randomUUID())
-                .user1Id(senderId)
-                .user2Id(UUID.randomUUID())
-                .build();
+        ChatRoom mockCreatedRoom = Mockito.mock(ChatRoom.class);
 
-        List<ChatRoom> chatRoomList = Collections.singletonList(chatRoom);
 
-        BDDMockito.given(chatRoomService.getAllChatRoomsForUser(senderId))
-                .willReturn(chatRoomList);
+        when(chatRoomService.createChatRoom(userId1, userId2)).thenReturn(mockCreatedRoom);
 
-        mockMvc.perform(get("/chat")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.message").value("Success"))
-                .andExpect(jsonPath("$.data[0].roomId").value(chatRoom.getRoomId().toString()));
+        ResponseEntity<ApiResponse<ChatRoom>> responseEntity = chatController.createChatRoom(request, authUser1);
+
+        assertNotNull(responseEntity);
+        assertEquals(HttpStatus.CREATED, responseEntity.getStatusCode());
+        ApiResponse<ChatRoom> apiResponse = responseEntity.getBody();
+        assertNotNull(apiResponse);
+        assertEquals(201, apiResponse.getStatus());
+        assertEquals("Chat room created successfully!", apiResponse.getMessage());
+        assertSame(mockCreatedRoom, apiResponse.getData());
+
+        verify(chatRoomService).createChatRoom(userId1, userId2);
     }
 
     @Test
-    public void testCreateChatRoom() throws Exception {
-        UUID senderId = UUID.randomUUID();
-        UUID recipientId = UUID.randomUUID();
-        ChatRoomRequest request = new ChatRoomRequest();
-        request.setSenderId(senderId);
-        request.setRecipientId(recipientId);
-
-        ChatRoom chatRoom = ChatRoom.builder()
-                .roomId(UUID.randomUUID())
-                .user1Id(senderId)
-                .user2Id(recipientId)
-                .build();
-
-        BDDMockito.given(chatRoomService.createChatRoom(senderId, recipientId))
-                .willReturn(chatRoom);
-
-        mockMvc.perform(post("/chat")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(jsonPath("$.status").value(201))
-                .andExpect(jsonPath("$.message").value("Resource created successfully"))
-                .andExpect(jsonPath("$.data.roomId").value(chatRoom.getRoomId().toString()));
-    }
-
-    @Test
-    public void testSendMessage() throws Exception {
+    void sendMessage_Success_ReturnsOkWithCreatedInBody() {
         UUID roomId = UUID.randomUUID();
-        UUID senderUserId = UUID.randomUUID();
-        String content = "Hello, World!";
-
         MessageRequest request = new MessageRequest();
-        request.setSenderUserId(senderUserId);
+        String content = "Test message content";
         request.setContent(content);
 
-        Message message = Message.builder()
-                .messageId(UUID.randomUUID())
-                .roomId(roomId)
-                .senderUserId(senderUserId)
-                .content(content)
-                .createdAt(LocalDateTime.now())
-                .build();
+        Message mockSentMessage = Mockito.mock(Message.class);
 
-        BDDMockito.given(messageService.sendMessage(roomId, senderUserId, content))
-                .willReturn(message);
 
-        mockMvc.perform(post("/chat/" + roomId + "/messages")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(jsonPath("$.status").value(201))
-                .andExpect(jsonPath("$.message").value("Resource created successfully"))
-                .andExpect(jsonPath("$.data.messageId").value(message.getMessageId().toString()));
+        when(messageService.sendMessage(roomId, userId1, content)).thenReturn(mockSentMessage);
+
+        ResponseEntity<ApiResponse<Message>> responseEntity = chatController.sendMessage(roomId, request, authUser1);
+
+        assertNotNull(responseEntity);
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+        ApiResponse<Message> apiResponse = responseEntity.getBody();
+        assertNotNull(apiResponse);
+        assertEquals(201, apiResponse.getStatus());
+        assertEquals("Message sent successfully", apiResponse.getMessage());
+        assertSame(mockSentMessage, apiResponse.getData());
+        verify(messageService).sendMessage(roomId, userId1, content);
     }
 
     @Test
-    public void testGetMessagesAsc() throws Exception {
+    void streamMessages_Success_ReturnsSseEmitter() {
         UUID roomId = UUID.randomUUID();
-        Message message = Message.builder()
-                .messageId(UUID.randomUUID())
-                .roomId(roomId)
-                .content("Ascending Order")
-                .createdAt(LocalDateTime.now())
-                .build();
+        SseEmitter mockEmitter = new SseEmitter();
+        when(chatSseService.subscribeToRoom(roomId)).thenReturn(mockEmitter);
 
-        List<Message> messages = Collections.singletonList(message);
+        SseEmitter resultEmitter = chatController.streamMessages(roomId);
 
-        BDDMockito.given(messageService.getMessagesByRoomAsc(roomId))
-                .willReturn(messages);
-
-        mockMvc.perform(get("/chat/" + roomId + "/messages")
-                        .param("order", "asc"))
-                .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.message").value("Success"))
-                .andExpect(jsonPath("$.data[0].messageId").value(message.getMessageId().toString()));
+        assertNotNull(resultEmitter);
+        assertSame(mockEmitter, resultEmitter);
+        verify(chatSseService).subscribeToRoom(roomId);
     }
 
     @Test
-    public void testGetMessagesDesc() throws Exception {
-        UUID roomId = UUID.randomUUID();
-        Message message = Message.builder()
-                .messageId(UUID.randomUUID())
-                .roomId(roomId)
-                .content("Descending Order")
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        List<Message> messages = Collections.singletonList(message);
-
-        BDDMockito.given(messageService.getMessagesByRoomDesc(roomId))
-                .willReturn(messages);
-
-        mockMvc.perform(get("/chat/" + roomId + "/messages")
-                        .param("order", "desc"))
-                .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.message").value("Success"))
-                .andExpect(jsonPath("$.data[0].messageId").value(message.getMessageId().toString()));
-    }
-
-    @Test
-    public void testEditMessage() throws Exception {
+    void editMessage_Success_ReturnsOk() {
         UUID roomId = UUID.randomUUID();
         UUID messageId = UUID.randomUUID();
-        UUID senderUserId = UUID.randomUUID();
-        String newContent = "Edited Message";
-
         MessageRequest request = new MessageRequest();
-        request.setSenderUserId(senderUserId);
-        request.setContent(newContent);
+        String updatedContent = "Updated message content";
+        request.setContent(updatedContent);
 
-        Message editedMessage = Message.builder()
-                .messageId(messageId)
-                .roomId(roomId)
-                .senderUserId(senderUserId)
-                .content(newContent)
-                .createdAt(LocalDateTime.now())
-                .build();
+        Message mockUpdatedMessage = Mockito.mock(Message.class);
 
-        BDDMockito.given(messageService.editMessageContent(messageId, senderUserId, newContent))
-                .willReturn(editedMessage);
 
-        mockMvc.perform(put("/chat/" + roomId + "/message/" + messageId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.message").value("Success"))
-                .andExpect(jsonPath("$.data.messageId").value(messageId.toString()))
-                .andExpect(jsonPath("$.data.content").value(newContent));
+        when(messageService.editMessageContent(roomId, messageId, userId1, updatedContent)).thenReturn(mockUpdatedMessage);
+
+        ResponseEntity<ApiResponse<Message>> responseEntity = chatController.editMessage(roomId, messageId, request, authUser1);
+
+        assertNotNull(responseEntity);
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+        ApiResponse<Message> apiResponse = responseEntity.getBody();
+        assertNotNull(apiResponse);
+        assertEquals(200, apiResponse.getStatus());
+        assertEquals("Message updated successfully", apiResponse.getMessage());
+        assertSame(mockUpdatedMessage, apiResponse.getData());
+        verify(messageService).editMessageContent(roomId, messageId, userId1, updatedContent);
     }
 
     @Test
-    public void testDeleteMessage() throws Exception {
+    void deleteMessage_Success_ReturnsOk() {
         UUID roomId = UUID.randomUUID();
         UUID messageId = UUID.randomUUID();
-        UUID senderUserId = UUID.randomUUID();
 
-        MessageRequest request = new MessageRequest();
-        request.setSenderUserId(senderUserId);
+        Message mockDeletedMessage = Mockito.mock(Message.class);
 
-        Message deletedMessage = Message.builder()
-                .messageId(messageId)
-                .roomId(roomId)
-                .senderUserId(senderUserId)
-                .content("Deleted")
-                .createdAt(LocalDateTime.now())
-                .build();
+        when(messageService.markMessageAsDeleted(roomId, messageId, userId1)).thenReturn(mockDeletedMessage);
 
-        BDDMockito.given(messageService.markMessageAsDeleted(messageId, senderUserId))
-                .willReturn(deletedMessage);
+        ResponseEntity<ApiResponse<Message>> responseEntity = chatController.deleteMessage(roomId, messageId, authUser1);
 
-        mockMvc.perform(delete("/chat/" + roomId + "/message/" + messageId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.message").value("Success"))
-                .andExpect(jsonPath("$.data.messageId").value(messageId.toString()));
+        assertNotNull(responseEntity);
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+        ApiResponse<Message> apiResponse = responseEntity.getBody();
+        assertNotNull(apiResponse);
+        assertEquals(200, apiResponse.getStatus());
+        assertEquals("Message deleted successfully", apiResponse.getMessage());
+        assertSame(mockDeletedMessage, apiResponse.getData());
+        verify(messageService).markMessageAsDeleted(roomId, messageId, userId1);
     }
 }
