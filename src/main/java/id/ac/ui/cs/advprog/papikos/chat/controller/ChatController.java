@@ -16,6 +16,7 @@ import id.ac.ui.cs.advprog.papikos.chat.sse.ChatSseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -38,8 +39,8 @@ public class ChatController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ChatRoom>>> getChatRoomsForUser(@RequestBody ChatRoomRequest request) {
-        return new GetChatRoomsCommand(chatRoomService, request).execute();
+    public ResponseEntity<ApiResponse<List<ChatRoom>>> getChatRoomsForUser(Authentication authentication) {
+        return new GetChatRoomsCommand(authentication, chatRoomService).execute();
     }
 
     @PostMapping
